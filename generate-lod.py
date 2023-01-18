@@ -19,9 +19,10 @@ parser.add_argument('level', type=int,
                     help='The level of the input directory.')
 parser.add_argument('directory', type=str,
                     help='The input directory, containing the tiles for the specified level.')
+parser.add_argument('-f', '--format', type=str, choices=['jpg', 'png'], default='jpg',
+                    help='Defines the format of the output images. Defaults to jpg.')
 
 args = parser.parse_args()
-
 
 """
 Processes the tiles of the given level, and produces the tiles of level-1.
@@ -94,7 +95,7 @@ def process_level(level, dir):
             # Resize to tile size
             tile = cv2.resize(im, dsize=(tilesize, tilesize), interpolation=cv2.INTER_CUBIC) 
     
-            outfilename = "tx_" + str(int(i/2)) + "_" + str(int(j/2)) + ".jpg"
+            outfilename = "tx_" + str(int(i/2)) + "_" + str(int(j/2)) + "." + args.format
             out = os.path.join(leveldir, outfilename)
             cv2.imwrite(out, tile)
 

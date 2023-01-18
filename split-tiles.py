@@ -28,8 +28,16 @@ parser.add_argument('N', type=int,
 parser.add_argument('file', metavar="FILE",
                     type=lambda x: is_valid_file(parser, x),
                     help='The input image. Must have a 1:1 or 2:1 aspect ratio.')
+parser.add_argument('-c', '--startcol', type=int, default=0,
+                    help='Starting column to use in the file names of the produced tiles.')
+parser.add_argument('-r', '--startrow', type=int, default=0,
+                    help='Starting row to use in the file names of the produced tiles.')
+parser.add_argument('-f', '--format', type=str, choices=['jpg', 'png'], default='jpg',
+                    help='Defines the format of the output images. Defaults to jpg.')
 
 args = parser.parse_args()
+
+    
 
 print("Input: %s" % args.file)
 im = load_image(args.file)
@@ -57,7 +65,7 @@ rows = im.shape[0] / N
 c = 0
 r = 0
 for count, tile in enumerate(tiles):
-    fname = 'tx_' + str(c) + '_' + str(r) + '.jpg'
+    fname = 'tx_' + str(c + args.startcol) + '_' + str(r + args.startrow) + '.' + args.format
     print("Writing %s" % fname)
     cv2.imwrite(fname, tile)
 
