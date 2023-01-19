@@ -40,11 +40,12 @@ def load_image( infilename ) :
 parser = argparse.ArgumentParser(description='Split the given input image into tiles of NxN pixels, named tx_C_R.ext, where C is the column and R is the row, all zero-based.')
 
 # Required positional arguments
-parser.add_argument('N', type=int,
+parser.add_argument('RESOLUTION', type=int,
                     help='Resolution of the produced tiles.')
-parser.add_argument('file', metavar="FILE",
+parser.add_argument('FILE',
                     type=lambda x: is_valid_file(parser, x),
                     help='The input image. Must have a 1:1 or 2:1 aspect ratio.')
+# Optional arguments
 parser.add_argument('-c', '--startcol', type=int, default=0,
                     help='Starting column to use in the file names of the produced tiles.')
 parser.add_argument('-r', '--startrow', type=int, default=0,

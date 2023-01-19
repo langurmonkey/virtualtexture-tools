@@ -29,10 +29,11 @@ def quality_int(x):
 parser = argparse.ArgumentParser(description='Generate the upper LOD levels from a certain level tile files. Each level L is put in the \'levelL\' directory.')
 
 # Required positional arguments
-parser.add_argument('level', type=int,
+parser.add_argument('LEVEL', type=int,
                     help='The level of the input directory.')
-parser.add_argument('directory', type=str,
+parser.add_argument('DIRECTORY', type=str,
                     help='The input directory, containing the tiles for the specified level.')
+# Optional arguments
 parser.add_argument('-f', '--format', type=str, choices=['jpg', 'png'], default='jpg',
                     help='Defines the format of the output images. Defaults to jpg.')
 parser.add_argument('-q', '--quality', type=quality_int, default=95,

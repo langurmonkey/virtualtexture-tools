@@ -19,13 +19,13 @@ That will create a list of `tx_[col]_[row].jpg` image files which correspond to 
 You can specify the output format with `-f` and the quality (if the format is JPG) with `-q`. Here are all the options:
 
 ```bash
-usage: split-tiles [-h] [-c STARTCOL] [-r STARTROW] [-f {jpg,png}] [-q QUALITY] N FILE
+usage: split-tiles [-h] [-c STARTCOL] [-r STARTROW] [-f {jpg,png}] [-q QUALITY] RESOLUTION FILE
 
 Split the given input image into tiles of NxN pixels, named tx_C_R.ext, where C is the column and R is the
 row, all zero-based.
 
 positional arguments:
-  N                     Resolution of the produced tiles.
+  RESOLUTION            Resolution of the produced tiles.
   FILE                  The input image. Must have a 1:1 or 2:1 aspect ratio.
 
 options:
@@ -53,13 +53,13 @@ This creates the directories `./level2`, `./level1` and `./level0`, with the cor
 You can specify the output format with `-f` and the quality (if the format is JPG) with `-q`. Here are all the options:
 
 ```bash
-usage: generate-lod [-h] [-f {jpg,png}] [-q QUALITY] level directory
+usage: generate-lod [-h] [-f {jpg,png}] [-q QUALITY] LEVEL DIRECTORY
 
 Generate the upper LOD levels from a certain level tile files. Each level L is put in the 'levelL' directory.
 
 positional arguments:
-  level                 The level of the input directory.
-  directory             The input directory, containing the tiles for the specified level.
+  LEVEL                 The level of the input directory.
+  DIRECTORY             The input directory, containing the tiles for the specified level.
 
 options:
   -h, --help            show this help message and exit
