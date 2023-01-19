@@ -123,4 +123,4 @@ def process_level(level, dir):
         process_level(l, leveldir)
 
 # Start with requested level
-process_level(args.level, args.directory)
+process_level(args.LEVEL, args.DIRECTORY)

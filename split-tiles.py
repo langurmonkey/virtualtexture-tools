@@ -59,15 +59,15 @@ args = parser.parse_args()
 
     
 
-print("Input: %s" % args.file)
-im = load_image(args.file)
+print("Input: %s" % args.FILE)
+im = load_image(args.FILE)
 
 print("Mode: ", im.shape)
 
 
 # Split image
-M = args.N
-N = args.N
+M = args.RESOLUTION
+N = args.RESOLUTION
 
 # Check divisibility
 if im.shape[0] % N != 0:
