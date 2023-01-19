@@ -9,6 +9,23 @@ import numpy as np
 import cv2
 import sys
 
+"""
+Checks a JPG quality integer parameter.
+"""
+def quality_int(x):
+    try: 
+        x = int(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r not an integer" % x)
+
+    if x <= 0 or x > 100:
+        raise argparse.ArgumentTypeError("%r not in range [1, 100]" % x)
+
+    return x
+
+"""
+Checks a file parameter.
+"""
 def is_valid_file(parser, arg):
     if not os.path.exists(arg):
         parser.error("The file %s does not exist!" % arg)
@@ -34,6 +51,8 @@ parser.add_argument('-r', '--startrow', type=int, default=0,
                     help='Starting row to use in the file names of the produced tiles.')
 parser.add_argument('-f', '--format', type=str, choices=['jpg', 'png'], default='jpg',
                     help='Defines the format of the output images. Defaults to jpg.')
+parser.add_argument('-q', '--quality', type=quality_int, default=95,
+                    help='If the format is JPG, this defines the quality setting in [1,100]. Defaults to 95.')
 
 args = parser.parse_args()
 
@@ -67,7 +86,7 @@ r = 0
 for count, tile in enumerate(tiles):
     fname = 'tx_' + str(c + args.startcol) + '_' + str(r + args.startrow) + '.' + args.format
     print("Writing %s" % fname)
-    cv2.imwrite(fname, tile)
+    cv2.imwrite(fname, tile, [int(cv2.IMWRITE_JPEG_QUALITY), args.quality])
 
     c = int((c + 1) % cols)
     if c == 0:

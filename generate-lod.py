@@ -11,6 +11,20 @@ import cv2
 import sys
 import re
 
+"""
+Checks a JPG quality integer parameter.
+"""
+def quality_int(x):
+    try: 
+        x = int(x)
+    except ValueError:
+        raise argparse.ArgumentTypeError("%r not an integer" % x)
+
+    if x <= 0 or x > 100:
+        raise argparse.ArgumentTypeError("%r not in range [1, 100]" % x)
+
+    return x
+
 # Instantiate the parser
 parser = argparse.ArgumentParser(description='Generate the upper LOD levels from a certain level tile files. Each level L is put in the \'levelL\' directory.')
 
@@ -21,8 +35,12 @@ parser.add_argument('directory', type=str,
                     help='The input directory, containing the tiles for the specified level.')
 parser.add_argument('-f', '--format', type=str, choices=['jpg', 'png'], default='jpg',
                     help='Defines the format of the output images. Defaults to jpg.')
+parser.add_argument('-q', '--quality', type=quality_int, default=95,
+                    help='If the format is JPG, this defines the quality setting in [1,100]. Defaults to 95.')
 
 args = parser.parse_args()
+
+
 
 """
 Processes the tiles of the given level, and produces the tiles of level-1.
@@ -97,7 +115,7 @@ def process_level(level, dir):
     
             outfilename = "tx_" + str(int(i/2)) + "_" + str(int(j/2)) + "." + args.format
             out = os.path.join(leveldir, outfilename)
-            cv2.imwrite(out, tile)
+            cv2.imwrite(out, tile, [int(cv2.IMWRITE_JPEG_QUALITY), args.quality])
 
     if l > 0:
         # Process next level up.

@@ -14,12 +14,12 @@ For example, if you have a 1024x512 texture in an image file `image.jpg` that yo
 split-tiles.py 64 ./image.jpg
 ```
 
-That will create a list of `tx_[col]_[row].jpg` image files which correspond to the [col,row] tile. In this case, it will produce 128 tile files ($16*8$).
+That will create a list of `tx_[col]_[row].jpg` image files which correspond to the [col,row] tile. In this case, it will produce 128 tile files ($16*8$). 
 
-Here are all the options:
+You can specify the output format with `-f` and the quality (if the format is JPG) with `-q`. Here are all the options:
 
 ```bash
-usage: split-tiles [-h] [-c STARTCOL] [-r STARTROW] [-f {jpg,png}] N FILE
+usage: split-tiles [-h] [-c STARTCOL] [-r STARTROW] [-f {jpg,png}] [-q QUALITY] N FILE
 
 Split the given input image into tiles of NxN pixels, named tx_C_R.ext, where C is the column and R is the
 row, all zero-based.
@@ -36,6 +36,8 @@ options:
                         Starting row to use in the file names of the produced tiles.
   -f {jpg,png}, --format {jpg,png}
                         Defines the format of the output images. Defaults to jpg.
+  -q QUALITY, --quality QUALITY
+                        If the format is JPG, this defines the quality setting in [1,100]. Defaults to 95.
 ```
 
 ## Generate LOD levels
@@ -48,10 +50,10 @@ generate-lod.py 3 ./level3
 
 This creates the directories `./level2`, `./level1` and `./level0`, with the corresponding tiles inside.
 
-Here is the full documentation:
+You can specify the output format with `-f` and the quality (if the format is JPG) with `-q`. Here are all the options:
 
 ```bash
-usage: generate-lod [-h] [-f {jpg,png}] level directory
+usage: generate-lod [-h] [-f {jpg,png}] [-q QUALITY] level directory
 
 Generate the upper LOD levels from a certain level tile files. Each level L is put in the 'levelL' directory.
 
@@ -63,6 +65,8 @@ options:
   -h, --help            show this help message and exit
   -f {jpg,png}, --format {jpg,png}
                         Defines the format of the output images. Defaults to jpg.
+  -q QUALITY, --quality QUALITY
+                        If the format is JPG, this defines the quality setting in [1,100]. Defaults to 95.
 ```
 
 ## Dependencies
