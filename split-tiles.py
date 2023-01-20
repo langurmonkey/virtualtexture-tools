@@ -6,8 +6,12 @@
 import argparse
 import os.path
 import numpy as np
-import cv2
 import sys
+
+# This is so that OpenCV supports images larger than 2^30 pixels (32768^2).
+# 2^40 supports 1048576x1048576 images.
+os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"] = pow(2,40).__str__()
+import cv2
 
 """
 Checks a JPG quality integer parameter.
