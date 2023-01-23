@@ -55,6 +55,12 @@ def process_level(level, dir):
 
     directory = os.fsencode(dir)
 
+    if len(os.listdir(directory)) < 4:
+        print("Not enoguh tiles to continue!")
+        return False
+
+    mincol = 999999999999
+    minrow = 999999999999
     maxcol = 0
     maxrow = 0
     for file in os.listdir(directory):
@@ -67,14 +73,18 @@ def process_level(level, dir):
             row = int(tokens[2])
             if col > maxcol:
                 maxcol = col
+            if col < mincol:
+                mincol = col
             if row > maxrow:
                 maxrow = row
+            if row < minrow:
+                minrow = row
 
     # MxN matrix 
     M = maxrow + 1
     N = maxcol + 1
     # Create matrix of tiles
-    tiles = [[ 0 for i in range(N) ] for j in range(M)]
+    tiles = [[ 0 for i in range(0, N) ] for j in range(0, M)]
     # Fill it with files
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
@@ -92,8 +102,8 @@ def process_level(level, dir):
         os.makedirs(leveldir)
 
     # Every 4 tiles, we join them into one, and downsize it.
-    for i in range(0, N, 2): # col
-        for j in range(0, M, 2): # row
+    for i in range(mincol, N, 2): # col
+        for j in range(minrow, M, 2): # row
             file00 = os.path.join(dir, tiles[j][i])
             im00 = cv2.imread(file00)   
             file10 = os.path.join(dir, tiles[j][i+1])
@@ -118,9 +128,12 @@ def process_level(level, dir):
             out = os.path.join(leveldir, outfilename)
             cv2.imwrite(out, tile, [int(cv2.IMWRITE_JPEG_QUALITY), args.quality])
 
-    if l > 0:
+    good = True
+    if good and l > 0:
         # Process next level up.
-        process_level(l, leveldir)
+        good = process_level(l, leveldir)
+
+    return True
 
 # Start with requested level
 process_level(args.LEVEL, args.DIRECTORY)
