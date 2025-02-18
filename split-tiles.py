@@ -64,7 +64,16 @@ args = parser.parse_args()
     
 
 print("Input: %s" % args.FILE)
-im = load_image(args.FILE)
+
+if args.FILE.endswith('.tif'):
+    # GeoTIFF file
+    import tifutils as tu
+    im, ds = tu.tif2array(args.FILE, False)
+    print(im.shape)
+    sys.exit(-1)
+
+else:
+    im = load_image(args.FILE)
 
 print("Mode: ", im.shape)
 
