@@ -65,7 +65,7 @@ def process_level(level, dir):
     maxrow = 0
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
-        ok = re.search("^tx_\d+_\d+\.\w+", filename)
+        ok = re.search(r"^tx_\d+_\d+\.\w+", filename)
         if ok is not None:
             name = os.path.splitext(filename)[0]
             tokens = name.split('_')
@@ -88,7 +88,7 @@ def process_level(level, dir):
     # Fill it with files
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
-        ok = re.search("^tx_\d+_\d+\.\w+", filename)
+        ok = re.search(r"^tx_\d+_\d+\.\w+", filename)
         if ok is not None:
             name = os.path.splitext(filename)[0]
             tokens = name.split('_')

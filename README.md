@@ -42,7 +42,7 @@ options:
 
 ## Generate LOD levels
 
-The `generate-lod.py` script generates the upper LOD level tiles from a directory with the tiles for a certain level. For example, if we move the 128 tiles, which are level-3 tiles ($log_2(8)=3$), to a `level3` directory, we can generate levels 2, 1 and 0 with:
+The `generate-lod.py` script generates the upper LOD level tiles from a directory with the tiles for a certain level. For example, if we move the 128 tiles, which are level-3 tiles ($log_2(sqrt(64))=3$, we use two root images, and each root has 64 images at level 3; [0:1, 1:4, 2:16, 3:64]), to a `level3` directory, we can generate levels 2, 1 and 0 with:
 
 ```bash
 generate-lod.py 3 ./level3
