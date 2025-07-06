@@ -1,8 +1,10 @@
 #! /usr/bin/env python
 
-# This script takes in a location with a bunch of tiles
-# previously split (with split-tiles.py) and generates
-# all the levels to the top.
+"""
+This script takes in a location with a bunch of tiles
+previously split (with split-tiles.py) and generates
+all the levels to the top.
+"""
 
 import argparse
 import os

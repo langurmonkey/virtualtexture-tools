@@ -1,6 +1,14 @@
 #! /usr/bin/env python
 
-# Convert SVT column, row, and level to longitude and latitude, and vice-versa.
+"""
+SVT tile coordinate converter for spherical virtual textures.
+
+This utility converts between:
+- (col, row, level) tile coordinates and their corresponding geographic coordinates (longitude, latitude)
+- (longitude, latitude, level) coordinates and their corresponding tile indices
+
+Supports full-sphere virtual textures with longitude in [-180°, 180°] and latitude in [-90°, 90°].
+"""
 
 import argparse
 import math
@@ -14,9 +22,9 @@ parser.add_argument('-c', '--column', type=int,
                     help='Column in level.')
 parser.add_argument('-r', '--row', type=int,
                     help='Row in level.')
-parser.add_argument('-lon', type=int,
+parser.add_argument('-lon', type=float,
                     help='The longitude in [-180, 180].')
-parser.add_argument('-lat', type=int,
+parser.add_argument('-lat', type=float,
                     help='The latitude in [-90, 90].')
 parser.add_argument('-l', '--level', type=int, required=True,
                     help='The SVT level.')

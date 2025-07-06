@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 
-# This script splits up the given input image into
-# NxM tiles, and names them "tx_i_j.ext". 
+"""
+This script splits up the given input image into
+NxM tiles, and names them "tx_i_j.ext". 
+"""
 
 import argparse
 import os.path
