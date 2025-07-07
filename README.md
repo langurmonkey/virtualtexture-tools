@@ -7,6 +7,7 @@ This project provides three scripts:
 - `split-tiles.py` -- Given a large image, split it into tiles down to a certain level.
 - `generate-lod.py` -- Given the tiles for a given level, create the LOD levels above.
 - `sentinel-query.py` -- Download true color images from the Sentinel-2 satellite and save them with the correct format. 
+- `tile-info.py` -- Convert coordinates to SVT tiles, and vice-versa.
 
 ## Split tiles 
 
@@ -114,6 +115,24 @@ Image saved to out/level09/tx_517_138.jpg
 ```
 
 As you can see, images are saved to `out/level{level}/tx_{col}_{row}.jpg`
+
+## Tile information
+
+The `tile-info.py` script can convert from (latitude, longitude, level) to tile coordinates (column, row), and vice-versa. It also outputs UV coordinates, and a WKT and GeoJSON polygon.
+
+```bash
+usage: tile-info.py [-h] [-c COLUMN] [-r ROW] [-lon LON] [-lat LAT] -l LEVEL
+
+Convert SVT column, row, and level to longitude and latitude, and vice-versa.
+
+options:
+  -h, --help           show this help message and exit
+  -c, --column COLUMN  Column index of the tile.
+  -r, --row ROW        Row index of the tile.
+  -lon LON             Longitude in [-180, 180].
+  -lat LAT             Latitude in [-90, 90].
+  -l, --level LEVEL    SVT level.
+```
 
 
 ## Dependencies
