@@ -83,21 +83,30 @@ lat = v * 180.0 - 90.0
 c = u * nc
 r = (1.0 - v) * nr
 
-# Second mapping for lat,lon
-c2 = c + 1
-r2 = r + 1
-u2, v2 = colRowToUV(c2, r2, nc, nr)
-lon2, lat2 = uvToLatLon(u2, v2)
+# Get the integer tile indices of the tile that contains the point
+col = int(math.floor(c))
+row = int(math.floor(r))
 
+# UV of top-left corner
+u0, v0 = colRowToUV(col, row, nc, nr)
+# UV of bottom-right corner
+u1, v1 = colRowToUV(col + 1, row + 1, nc, nr)
+# UV
+uv1 = [u0, v0]
+uv2 = [u1, v1]
 
-uv1 = [u, v]
-uv2 = [u2, v2]
-coord1 = [lon, lat]
-coord2 = [lon2, lat2]
-colrow1 = [int(c), int(r)]
-colrow2 = [int(c2), int(r2)]
+# Convert UVs to lon/lat
+lon0, lat0 = uvToLatLon(u0, v0)  # top-left
+lon1, lat1 = uvToLatLon(u1, v1)  # bottom-right
 
-print("Level:                   %d" % l)
-print("col/row:                 %s -> %s (extent %s)" % (colrow1, colrow2, extent(colrow1, colrow2)))
-print("Lon/lat (start -> end):  %s -> %s (extent %s)" % (coord1, coord2, extent(coord1, coord2)))
-print("UV (start -> end):       %s -> %s (extent %s)" % (uv1, uv2, extent(uv1, uv2)))
+# Polygon in WKT format: (lon lat) space-separated, counter-clockwise
+print(f"Level:                   {l}")
+print()
+print(f"Input point:             lat={lat}, lon={lon}")
+print(f"Tile indices:            col={col}, row={row}")
+print(f"Tile extent (lon/lat):   ({lon0}, {lat0}) -> ({lon1}, {lat1})")
+print()
+print("WKT POLYGON:")
+print(f"  POLYGON(({lon0} {lat0}, {lon1} {lat0}, {lon1} {lat1}, {lon0} {lat1}, {lon0} {lat0}))")
+print()
+print(f"UV (start -> end):       {uv1} -> {uv2} (extent {extent(uv1, uv2)})")
