@@ -2,7 +2,11 @@
 
 This project contains a couple of scripts to help prepare Sparse Virtual Texture (SVT) datasets for [Gaia Sky](https://codeberg.org/gaiasky/gaiasky). The format is quite universal, so they can be used equally for other software packages that support virtual texturing.
 
-This project provides two scripts: `split-tiles.py` and `generate-lod.py`.
+This project provides three scripts:
+
+- `split-tiles.py` -- Given a large image, split it into tiles down to a certain level.
+- `generate-lod.py` -- Given the tiles for a given level, create the LOD levels above.
+- `sentinel-query.py` -- Download true color images from the Sentinel-2 satellite and save them with the correct format. 
 
 ## Split tiles 
 
@@ -69,7 +73,50 @@ options:
                         If the format is JPG, this defines the quality setting in [1,100]. Defaults to 95.
 ```
 
+## Sentinel downloader
+
+The `sentinel-query.py` script connects to the [Sentinel Hub Processing API](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process.html) to download [True Color]( https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process/Examples/S2L2A.html#true-color) satellite images given a pair of (latitude, longitude) coordinates and an SVT level. The script includes an option to mask out cloudy pixels. If you get a cloudy image, try playing around with the times. For instance, you can get cloudless images of Heidelberg, Germany, during the summer months.
+
+You need to [create an account](https://documentation.dataspace.copernicus.eu/Registration.html) in the CDSE website and then create an OAuth token, which will give you a client ID and a client secret ([more info here](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Overview/Authentication.html#python)). Then, set up the following environment variables:
+
+```bash
+export CLIENT_ID="my-client-id"
+export CLIENT_SECRET="my-client-secret"
+```
+
+Then, you are ready to run the script. Here are the options:
+
+```bash
+usage: sentinel-query.py [-h] -lat LAT -lon LON -l LEVEL [-f DATE_FROM] [-t DATE_TO]
+                         [-m | --mask | --no-mask] [--width WIDTH] [--height HEIGHT]
+
+Fetch Sentinel tile for SVT-aligned bounding box
+
+options:
+  -h, --help            show this help message and exit
+  -lat, --lat LAT       Latitude of the center point
+  -lon, --lon LON       Longitude of the center point
+  -l, --level LEVEL     SVT tile level
+  -f, --from DATE_FROM  Start date (ISO8601)
+  -t, --to DATE_TO      End date (ISO8601)
+  -m, --mask, --no-mask
+                        Mask cloudy pixels and print them in pure white
+  --width WIDTH         Output width in pixels
+  --height HEIGHT       Output height in pixels
+```
+
+For example, if you want to get the tile for latitude=41.33 and longitude=1.89 at level 9, you would run:
+
+```bash
+➜ ./sentinel-query.py --lat 41.33 --lon 1.89 --level 9
+Box: [1.7578125, 41.1328125, 2.109375, 41.484375], col: 517, row: 138
+Image saved to out/level09/tx_517_138.jpg
+```
+
+As you can see, images are saved to `out/level{level}/tx_{col}_{row}.jpg`
+
+
 ## Dependencies
 
-You need Python to run the scripts. The project only depends on `argparse`, `numpy` and `opencv-python`. You can install the right versions with `pip install -r requirements.txt`.
+You need Python to run the scripts. The project depends on `argparse`, `numpy`, and `opencv-python`. In order to use the `sentinel-query.py` script, you also need `utm` and `requests`. You can install the right versions with `pip install -r requirements.txt`.
 
