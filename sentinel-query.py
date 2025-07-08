@@ -250,13 +250,13 @@ def parse_args():
 """ Current tile number """
 current_tile = 0
 """ Number of skipped tiles """
-skipped = 0
+skipped_tiles = 0
 """ Total tiles to fetch """
 total_tiles = 0
 
 def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
     global current_tile
-    global skipped
+    global skipped_tiles
     global total_tiles
     
     current_tile += 1
@@ -275,7 +275,7 @@ def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
     has_land = tile_has_land(minlat, minlon, maxlat, maxlon)
     if not has_land and not keep_water:
         print(f"Skipping water tile L{level} ({col},{row})")
-        skipped += 1
+        skipped_tiles += 1
 
     print(f"Request {level}, {center_lat}, {center_lon} ({current_tile * 100.0 / total_tiles:.2f}%)")
 
@@ -316,6 +316,7 @@ if __name__ == "__main__":
 
         print(f"We need to fetch {ops} tiles")
 
-        current_tile = 0
         total_tiles = ops
         process_tile_rec(lat, lon, args.level0, args.level1, keep_water=args.keep_water)
+
+        print(f"Done. Downloaded {current_tile} tiles, skipped {skipped_tiles} water tiles.")
