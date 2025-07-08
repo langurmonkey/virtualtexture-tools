@@ -14,6 +14,9 @@ global-land-mask = "*"
 sentinelhub = "*"
 numpy = "*"
 pillow = "*"
+utm = "*"
+geopy = "*"
+pudb = "*"
 
 [dev-packages]
 

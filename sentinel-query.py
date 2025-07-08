@@ -5,7 +5,9 @@ import sys
 import math
 import json
 import argparse
+import geopy
 import numpy as np
+from geopy.geocoders import Nominatim
 from PIL import Image
 from datetime import datetime
 from global_land_mask import globe
@@ -22,6 +24,13 @@ from sentinelhub import (
     Geometry,
 )
 
+def get_lat_lon(location_name):
+    geolocator = Nominatim(user_agent="geoapi")
+    location = geolocator.geocode(location_name)
+    if location:
+        return (location.latitude, location.longitude)
+    else:
+        return None
 
 def tile_has_land(lat0, lon0, lat1, lon1, resolution=10):
     """
@@ -195,8 +204,9 @@ def parse_date(date_str):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Fetch Sentinel tile for SVT-aligned bounding box. The program has two modes. In single mode, provide a single level in -l to get a single tile with the given coordinates. In multi mode, provide two levels -l0 and -l1 to download all tiles between those levels (both included).")
-    parser.add_argument("-lat", "--lat", type=float, required=True, help="Latitude of the center point.")
-    parser.add_argument("-lon", "--lon", type=float, required=True, help="Longitude of the center point.")
+    parser.add_argument("-lat", "--latitude", type=float, help="Latitude of the center point. Required if --location is not provided.")
+    parser.add_argument("-lon", "--longitude", type=float, help="Longitude of the center point. Required if --location is not provided.")
+    parser.add_argument("--location", type=str, help="Location name. The latitude and longitude of this location will be resolved using Nominatim (OpenStreetMap). Required if -lat/-lon are not provided.")
     parser.add_argument("-l0", "--level0", type=int, required=False, help="The upper level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l1 is required for this to work, and -l1 > -l0.")
     parser.add_argument("-l1", "--level1", type=int, required=False, help="The lower level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l0 is required for this to work, and -l0 < -l1.")
     parser.add_argument("-l", "--level", type=int, required=False, help="SVT tile level. If this is present, single mode is activated.")
@@ -207,13 +217,35 @@ def parse_args():
     parser.add_argument("--height", type=int, default=1024, help="Output height in pixels.")
     args = parser.parse_args()
 
+    # Location
+    loc = args.location is not None
+    coords = args.latitude is not None and args.longitude is not None
+
+    if not (loc ^ coords):
+        parser.error("You must provide either both --latitude and --longitude, or --location (but not both).")
+
+    if coords:
+        lat = args.latitude
+        lon = args.longitude
+    else:
+        # Resolve.
+        ll = get_lat_lon(args.location)
+        if ll is None:
+            parser.error(f"Could not resolve latitude and longitude for location '{args.location}'")
+        else :
+            print(f"Resolved '{args.location}' to {ll}.")
+
+        lat = ll[0]
+        lon = ll[1]
+    
+    # Mode
     single_mode = args.level is not None
     multi_mode = args.level0 is not None and args.level1 is not None
 
     if not (single_mode ^ multi_mode):
         parser.error("You must provide either both -l0 and -l1, or -l (but not both).")
 
-    return args, single_mode
+    return args, single_mode, lat, lon
     
 """ Current tile number """
 current_tile = 0
@@ -263,20 +295,20 @@ def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
 
 # --- Example usage ---
 if __name__ == "__main__":
-    args, mode_single = parse_args()
+    args, mode_single, lat, lon = parse_args()
 
     if mode_single:
         print("Single mode activated")
-        print(f"   level:{args.level}  lon:{args.lon}  lat:{args.lat}")
+        print(f"   level:{args.level}  lon:{lon}  lat:{lat}")
         # Single mode, just download one tile.
-        download_tile(args.level, args.lat, args.lon, args)
+        download_tile(args.level, lat, lon, args)
     else:
         # Multi mode, download tiles between two levels.
         if args.level0 >= args.level1:
             print(f"-l0 ({args.level0}) must be less than -l1 ({args.level1}).")
 
         print("Multi mode activated")
-        print(f"   levels:{args.level0}-{args.level1}  lon:{args.lon}  lat:{args.lat}")
+        print(f"   levels:{args.level0}-{args.level1}  lon:{lon}  lat:{lat}")
 
         ops = 0
         for l in range(args.level0, args.level1 + 1):
@@ -284,9 +316,6 @@ if __name__ == "__main__":
 
         print(f"We need to fetch {ops} tiles")
 
-        latitude = args.lat
-        longitude = args.lon
-
         current_tile = 0
         total_tiles = ops
-        process_tile_rec(latitude, longitude, args.level0, args.level1, keep_water=args.keep_water)
+        process_tile_rec(lat, lon, args.level0, args.level1, keep_water=args.keep_water)

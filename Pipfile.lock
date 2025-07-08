@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "f3796676529135b12464a451dc02242c1a298fd529f2dca235e704768cd59027"
+            "sha256": "19b79291de363c08b518f39a6962d1ceb0d1b52249a597e5b357a0111dc5c18d"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -155,6 +155,23 @@
             "markers": "python_version >= '3.7' and python_version < '4.0'",
             "version": "==0.6.7"
         },
+        "geographiclib": {
+            "hashes": [
+                "sha256:6b7225248e45ff7edcee32becc4e0a1504c606ac5ee163a5656d482e0cd38734",
+                "sha256:f7f41c85dc3e1c2d3d935ec86660dc3b2c848c83e17f9a9e51ba9d5146a15859"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==2.0"
+        },
+        "geopy": {
+            "hashes": [
+                "sha256:50283d8e7ad07d89be5cb027338c6365a32044df3ae2556ad3f52f4840b3d0d1",
+                "sha256:ae8b4bc5c1131820f4d75fce9d4aaaca0c85189b3aa5d64c3dcaf5e3b7b882a7"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==2.4.1"
+        },
         "global-land-mask": {
             "hashes": [
                 "sha256:07751fbb4e3834ee508a84ea64d9bd5340fbd0a8c951e24b43c323fcc670bb62",
@@ -171,6 +188,14 @@
             "index": "pypi",
             "markers": "python_version >= '3.6'",
             "version": "==3.10"
+        },
+        "jedi": {
+            "hashes": [
+                "sha256:4770dc3de41bde3966b02eb84fbcf557fb33cce26ad23da12c742fb50ecb11f0",
+                "sha256:a8ef22bde8490f57fe5c7681a3c83cb58874daf72b4784de3cce5b6ef6edb5b9"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==0.19.2"
         },
         "marshmallow": {
             "hashes": [
@@ -275,6 +300,14 @@
             ],
             "markers": "python_version >= '3.8'",
             "version": "==25.0"
+        },
+        "parso": {
+            "hashes": [
+                "sha256:a418670a20291dacd2dddc80c377c5c3791378ee1e8d12bffc35420643d43f18",
+                "sha256:eb3a7b58240fb99099a345571deecc0f9540ea5f4dd2fe14c2a99d6b281ab92d"
+            ],
+            "markers": "python_version >= '3.6'",
+            "version": "==0.8.4"
         },
         "pillow": {
             "hashes": [
@@ -389,6 +422,23 @@
             "markers": "python_version >= '3.9'",
             "version": "==11.3.0"
         },
+        "pudb": {
+            "hashes": [
+                "sha256:a528b29c69ce8b182a337872c5f046071f6d68d3415c6d7bf53bd27c264f58d0",
+                "sha256:f642d42e6054c992b43c463742650aa879fe290d7d7ffdeb21f7d00dc4587a21"
+            ],
+            "index": "pypi",
+            "markers": "python_version ~= '3.8'",
+            "version": "==2025.1"
+        },
+        "pygments": {
+            "hashes": [
+                "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887",
+                "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==2.19.2"
+        },
         "pyproj": {
             "hashes": [
                 "sha256:04abc517a8555d1b05fcee768db3280143fe42ec39fdd926a2feef31631a1f2f",
@@ -441,7 +491,6 @@
                 "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c",
                 "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"
             ],
-            "index": "pypi",
             "markers": "python_version >= '3.8'",
             "version": "==2.32.4"
         },
@@ -603,6 +652,20 @@
             "markers": "python_version >= '3.9'",
             "version": "==2.5.0"
         },
+        "urwid": {
+            "hashes": [
+                "sha256:94ec1448d0178c881c01845c2b478cdc89f7b71bb65349466dbc99da1965eaac",
+                "sha256:e7cb70ba1e7ff45779a5a57e43c57581ee7de6ceefb56c432491a4a6ce81eb78"
+            ],
+            "markers": "python_full_version >= '3.9.0'",
+            "version": "==3.0.2"
+        },
+        "urwid-readline": {
+            "hashes": [
+                "sha256:9301444b86d58f7d26388506b704f142cefd193888488b4070d3a0fdfcfc0f84"
+            ],
+            "version": "==0.15.1"
+        },
         "utm": {
             "hashes": [
                 "sha256:634d5b6221570ddc6a1e94afa5c51bae92bcead811ddc5c9bc0a20b847c2dafa",
@@ -611,6 +674,13 @@
             "index": "pypi",
             "markers": "python_version >= '3.8'",
             "version": "==0.8.1"
+        },
+        "wcwidth": {
+            "hashes": [
+                "sha256:3da69048e4540d84af32131829ff948f1e022c1c6bdb8d6102117aac784f6859",
+                "sha256:72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5"
+            ],
+            "version": "==0.2.13"
         }
     },
     "develop": {}
