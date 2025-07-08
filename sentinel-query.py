@@ -4,10 +4,34 @@ import os
 import sys
 import math
 import json
-import requests
 import argparse
-import utm
+import numpy as np
+from PIL import Image
 from datetime import datetime
+from global_land_mask import globe
+from sentinelhub import (
+    SHConfig,
+    DataCollection,
+    SentinelHubCatalog,
+    SentinelHubRequest,
+    SentinelHubStatistical,
+    BBox,
+    bbox_to_dimensions,
+    CRS,
+    MimeType,
+    Geometry,
+)
+
+
+def tile_has_land(lat0, lon0, lat1, lon1, resolution=10):
+    """
+    Returns True if ANY point within the lat/lon rectangle is land.
+    """
+    import numpy as np
+    lats = np.linspace(lat0, lat1, resolution)
+    lons = np.linspace(lon0, lon1, resolution)
+    lon_grid, lat_grid = np.meshgrid(lons, lats)
+    return globe.is_land(lat_grid, lon_grid).any()
 
 def get_client_credentials():
     client_id = os.getenv("CLIENT_ID")
@@ -23,37 +47,58 @@ def get_client_credentials():
 TOKEN_URL = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
 API_URL = "https://sh.dataspace.copernicus.eu/api/v1/process"
 
-def get_evalscript(mask_cloudy=False):
-    if mask_cloudy:
-        evalscript = """
-        //VERSION=3
-        function setup() {
-          return {
-            input: ["B02", "B03", "B04", "SCL"],
-            output: { bands: 3 },
-          }
-        }
-        function evaluatePixel(sample) {
-          if ([8, 9, 10].includes(sample.SCL)) {
-            return [1, 1, 1]
-          } else {
-            return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02]
-          }
-        }
-        """
-    else:
-        evalscript = """
-        //VERSION=3
-        function setup() {
-          return {
-            input: ["B02", "B03", "B04"],
-            output: { bands: 3 },
-          }
-        }
-        function evaluatePixel(sample) {
-            return [2.5 * sample.B04, 2.5 * sample.B03, 2.5 * sample.B02]
-        }
-        """
+def get_evalscript():
+    evalscript = """
+    //VERSION=3
+    function setup() {
+      return {
+        input: ["B02", "B03", "B04", "dataMask"],
+        output: { bands: 4 },
+      }
+    }
+    // Contrast enhance / highlight compress
+
+    const maxR = 3.0; // max reflectance
+    const midR = 0.13;
+    const sat = 1.2;
+    const gamma = 1.8;
+    const scalefac = 10000;
+
+    function evaluatePixel(smp) {
+      const rgbLin = satEnh(sAdj(smp.B04/scalefac), sAdj(smp.B03/scalefac), sAdj(smp.B02/scalefac));
+      return [sRGB(rgbLin[0]), sRGB(rgbLin[1]), sRGB(rgbLin[2]), smp.dataMask];
+    }
+
+    function sAdj(a) {
+      return adjGamma(adj(a, midR, 1, maxR));
+    }
+
+    const gOff = 0.01;
+    const gOffPow = Math.pow(gOff, gamma);
+    const gOffRange = Math.pow(1 + gOff, gamma) - gOffPow;
+
+    function adjGamma(b) {
+      return (Math.pow((b + gOff), gamma) - gOffPow)/gOffRange;
+    }
+
+    // Saturation enhancement
+    function satEnh(r, g, b) {
+      const avgS = (r + g + b) / 3.0 * (1 - sat);
+      return [clip(avgS + r * sat), clip(avgS + g * sat), clip(avgS + b * sat)];
+    }
+
+    function clip(s) {
+      return s < 0 ? 0 : s > 1 ? 1 : s;
+    }
+
+    //contrast enhancement with highlight compression
+    function adj(a, tx, ty, maxC) {
+      var ar = clip(a / maxC, 0, 1);
+      return ar * (ar * (tx/maxC + ty -1) - ty) / (ar * (2 * tx/maxC - 1) - tx/maxC);
+    }
+
+    const sRGB = (c) => c <= 0.0031308 ? (12.92 * c) : (1.055 * Math.pow(c, 0.41666666666) - 0.055);
+    """
         
     return evalscript
 
@@ -79,105 +124,169 @@ def get_svt_tile_bbox(lat, lon, level):
 
     return [lon0, lat1, lon1, lat0], col, row
 
-def latlon_to_utm_zone(lon, lat):
-    easting, northing, zone_number, zone_letter = utm.from_latlon(lat, lon)
-    epsg = 32600 + zone_number if lat >= 0 else 32700 + zone_number
-    return easting, northing, epsg
-
-def authenticate():
+def request_sentinel_true_col(lat, lon, level, date_from, date_to, width=1024, height=1024):
     client_id, client_secret = get_client_credentials()
-    resp = requests.post(TOKEN_URL, data={
-        'grant_type': 'client_credentials',
-        'client_id': client_id,
-        'client_secret': client_secret
-    })
-    resp.raise_for_status()
-    return resp.json()["access_token"]
+    config = SHConfig()
+    config.sh_client_id = client_id
+    config.sh_client_secret = client_secret
+    config.sh_token_url = "https://identity.dataspace.copernicus.eu/auth/realms/CDSE/protocol/openid-connect/token"
+    config.sh_base_url = "https://sh.dataspace.copernicus.eu"
 
-
-def request_sentinel_image(lat, lon, level, date_from, date_to, mask=False, width=1024, height=1024):
-    # 1. compute tile bounds
     bbox, col, row = get_svt_tile_bbox(lat, lon, level)
 
-    # 2. Convert both corners to UTM
-    e0, n0, zone, letter = utm.from_latlon(bbox[1], bbox[0])
-    e1, n1, _, _ = utm.from_latlon(bbox[3], bbox[2])
-    epsg = 32600 + zone if bbox[1] >= 0 else 32700 + zone
-    crs_uri = f"http://www.opengis.net/def/crs/EPSG/0/{epsg}"
+    aoi_bbox = BBox(bbox=bbox, crs=CRS.WGS84)
+    aoi_size = (width, height)
 
-    print(f"Box: {bbox}, col: {col}, row: {row}")
-    token = authenticate()
-    
-    headers = {"Authorization": f"Bearer {token}"}
-    payload = {
-        "input": {
-            "bounds": {
-                "properties": {"crs": crs_uri},
-                "bbox": [e0, n1, e1, n0],
-            },
-            "data": [{
-                "type": "sentinel-2-l2a",
-                "dataFilter": {
-                    "timeRange": {
-                        "from": date_from,
-                        "to": date_to
-                    }
-                }
-            }]
-        },
-        "output": {
-            "width": width,
-            "height": height,
-            "responses": [
-            {
-                "identifier": "default",
-                "format": {"type": "image/png"},
-            }
+    S2l3_cloudless_mosaic = DataCollection.define_byoc(
+        collection_id="5460de54-082e-473a-b6ea-d5cbe3c17cca"
+    )
+    request_true_color = SentinelHubRequest(
+        evalscript=get_evalscript(),
+        input_data=[
+            SentinelHubRequest.input_data(
+                data_collection=S2l3_cloudless_mosaic,
+                time_interval=(date_from, date_to),
+            )
         ],
-        },
-        "evalscript": get_evalscript(mask)
-    }
+        responses=[SentinelHubRequest.output_response("default", MimeType.PNG)],
+        bbox=aoi_bbox,
+        size=aoi_size,
+        config=config,
+        data_folder="./cache",
+    )
 
-    response = requests.post(API_URL, headers=headers, json=payload)
-    response.raise_for_status()
-    return response.content, col, row
+    true_col_imgs = request_true_color.get_data(save_data=False)
+
+    return true_col_imgs[0], col, row
+
+def download_tile(level, lat, lon, args):
+    image_bytes, col, row = request_sentinel_true_col(
+        lat,
+        lon,
+        level,
+        args.date_from,
+        args.date_to,
+        width=args.width,
+        height=args.height
+    )
+    arr_rgb = image_bytes[:, :, :3]  # Drop alpha channel
+    # Convert to Image and save as JPEG
+    img = Image.fromarray(arr_rgb)
+
+    # Build output directory
+    out_dir = os.path.join("out", f"level{level:02d}")
+    os.makedirs(out_dir, exist_ok=True)
+    # Write file
+    filename = f"tx_{col}_{row}.jpg"
+    filepath = os.path.join(out_dir, filename)
+    img.save(filepath, quality=88)
+    print(f"Image saved to {filepath}")
+
+def parse_date(date_str):
+    # Try ISO 8601 first
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y-%m-%dT%H:%M:%S", "%Y%m%d"):
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+    raise argparse.ArgumentTypeError(
+        f"Invalid date format: {date_str}. Use ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101)."
+    )
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Fetch Sentinel tile for SVT-aligned bounding box")
-    parser.add_argument("-lat", "--lat", type=float, required=True, help="Latitude of the center point")
-    parser.add_argument("-lon", "--lon", type=float, required=True, help="Longitude of the center point")
-    parser.add_argument("-l", "--level", type=int, required=True, help="SVT tile level")
-    parser.add_argument("-f", "--from", dest="date_from", type=str, default="2023-01-01T00:00:00Z", help="Start date (ISO8601)")
-    parser.add_argument("-t", "--to", dest="date_to", type=str, default="2024-12-31T00:00:00Z", help="End date (ISO8601)")
-    parser.add_argument("-m", "--mask", action=argparse.BooleanOptionalAction, help="Mask cloudy pixels and print them in pure white")
-    parser.add_argument("--width", type=int, default=1024, help="Output width in pixels")
-    parser.add_argument("--height", type=int, default=1024, help="Output height in pixels")
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(description="Fetch Sentinel tile for SVT-aligned bounding box. The program has two modes. In single mode, provide a single level in -l to get a single tile with the given coordinates. In multi mode, provide two levels -l0 and -l1 to download all tiles between those levels (both included).")
+    parser.add_argument("-lat", "--lat", type=float, required=True, help="Latitude of the center point.")
+    parser.add_argument("-lon", "--lon", type=float, required=True, help="Longitude of the center point.")
+    parser.add_argument("-l0", "--level0", type=int, required=False, help="The upper level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l1 is required for this to work, and -l1 > -l0.")
+    parser.add_argument("-l1", "--level1", type=int, required=False, help="The lower level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l0 is required for this to work, and -l0 < -l1.")
+    parser.add_argument("-l", "--level", type=int, required=False, help="SVT tile level. If this is present, single mode is activated.")
+    parser.add_argument("-f", "--from", dest="date_from", type=parse_date, default=datetime(2024, 1, 1), help="Start date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
+    parser.add_argument("-t", "--to", dest="date_to", type=parse_date, default=datetime(2025, 6, 1), help="End date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
+    parser.add_argument("-k", "--keep_water", default=False, action=argparse.BooleanOptionalAction, help="Keep tiles that are only water. By default, all-water tiles are discarded. Only works in multi mode (-l0, -l1).")
+    parser.add_argument("--width", type=int, default=1024, help="Output width in pixels.")
+    parser.add_argument("--height", type=int, default=1024, help="Output height in pixels.")
+    args = parser.parse_args()
+
+    single_mode = args.level is not None
+    multi_mode = args.level0 is not None and args.level1 is not None
+
+    if not (single_mode ^ multi_mode):
+        parser.error("You must provide either both -l0 and -l1, or -l (but not both).")
+
+    return args, single_mode
+    
+""" Current tile number """
+current_tile = 0
+""" Number of skipped tiles """
+skipped = 0
+""" Total tiles to fetch """
+total_tiles = 0
+
+def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
+    global current_tile
+    global skipped
+    global total_tiles
+    
+    current_tile += 1
+    bbox, col, row = get_svt_tile_bbox(latitude, longitude, level)
+    
+    # Compute center longitude and latitude
+    minlat = min(bbox[1], bbox[3])
+    maxlat = max(bbox[1], bbox[3])
+    minlon = min(bbox[0], bbox[2])
+    maxlon = max(bbox[0], bbox[2])
+    span_lat = (maxlat - minlat) / 2.0
+    span_lon = (maxlon - minlon) / 2.0
+    center_lat = minlat + span_lat
+    center_lon = minlon + span_lon
+
+    has_land = tile_has_land(minlat, minlon, maxlat, maxlon)
+    if not has_land and not keep_water:
+        print(f"Skipping water tile L{level} ({col},{row})")
+        skipped += 1
+
+    print(f"Request {level}, {center_lat}, {center_lon} ({current_tile * 100.0 / total_tiles:.2f}%)")
+
+    if has_land or keep_water:
+        download_tile(level, center_lat, center_lon, args)
+
+    # Children
+    lats = span_lat / 2.0
+    lons = span_lon / 2.0
+    if level < l1:
+        # Subdivide into 4
+        process_tile_rec(center_lat - lats, center_lon - lons, level + 1, l1, keep_water)
+        process_tile_rec(center_lat - lats, center_lon + lons, level + 1, l1, keep_water)
+        process_tile_rec(center_lat + lats, center_lon - lons, level + 1, l1, keep_water)
+        process_tile_rec(center_lat + lats, center_lon + lons, level + 1, l1, keep_water)
+    
 
 # --- Example usage ---
 if __name__ == "__main__":
-    args = parse_args()
+    args, mode_single = parse_args()
 
-    try:
-        image_bytes, col, row = request_sentinel_image(
-            args.lat,
-            args.lon,
-            args.level,
-            args.date_from,
-            args.date_to,
-            mask=args.mask,
-            width=args.width,
-            height=args.height
-        )
-        # Build output directory
-        out_dir = os.path.join("out", f"level{args.level:02d}")
-        os.makedirs(out_dir, exist_ok=True)
-        # Write file
-        filename = f"tx_{col}_{row}.jpg"
-        filepath = os.path.join(out_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(image_bytes)
-        print(f"Image saved to {filepath}")
-    except requests.HTTPError as e:
-        print("Request failed:", e.response.text)
-    
+    if mode_single:
+        print("Single mode activated")
+        print(f"   level:{args.level}  lon:{args.lon}  lat:{args.lat}")
+        # Single mode, just download one tile.
+        download_tile(args.level, args.lat, args.lon, args)
+    else:
+        # Multi mode, download tiles between two levels.
+        if args.level0 >= args.level1:
+            print(f"-l0 ({args.level0}) must be less than -l1 ({args.level1}).")
+
+        print("Multi mode activated")
+        print(f"   levels:{args.level0}-{args.level1}  lon:{args.lon}  lat:{args.lat}")
+
+        ops = 0
+        for l in range(args.level0, args.level1 + 1):
+            ops = ops + 4 ** (l - args.level0)
+
+        print(f"We need to fetch {ops} tiles")
+
+        latitude = args.lat
+        longitude = args.lon
+
+        current_tile = 0
+        total_tiles = ops
+        process_tile_rec(latitude, longitude, args.level0, args.level1, keep_water=args.keep_water)

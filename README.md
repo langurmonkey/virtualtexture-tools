@@ -76,7 +76,14 @@ options:
 
 ## Sentinel downloader
 
-The `sentinel-query.py` script connects to the [Sentinel Hub Processing API](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process.html) to download [True Color]( https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process/Examples/S2L2A.html#true-color) satellite images given a pair of (latitude, longitude) coordinates and an SVT level. The script includes an option to mask out cloudy pixels. If you get a cloudy image, try playing around with the times. For instance, you can get cloudless images of Heidelberg, Germany, during the summer months.
+The `sentinel-query.py` script connects to the [CDSE Sentinel Hub Processing API](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process.html) to download [True Color]( https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Process/Examples/S2L2A.html#true-color) satellite images.
+
+The script has two modes:
+
+- **Single mode**---Download a single tile given a pair of (latitude, longitude) coordinates and an SVT level.
+- **Multi mode**---Download all tiles between two levels L0 and L1 where L0 < L1. In this mode, you give it the two levels and a pair of (latitude, longitude) coordinates and the script will get all tiles recursively from L0 to L1. In this mode, it is possible to skip tiles that have no land (water tiles) by using the flag `--skip_water`.
+
+The script includes an option to mask out cloudy pixels (`--mask_clouds`). If you get a cloudy image, try playing around with the from and to dates (`-f` and `-t`). For instance, you can get cloudless images of Heidelberg, Germany, during the summer months.
 
 You need to [create an account](https://documentation.dataspace.copernicus.eu/Registration.html) in the CDSE website and then create an OAuth token, which will give you a client ID and a client secret ([more info here](https://documentation.dataspace.copernicus.eu/APIs/SentinelHub/Overview/Authentication.html#python)). Then, set up the following environment variables:
 
@@ -88,22 +95,33 @@ export CLIENT_SECRET="my-client-secret"
 Then, you are ready to run the script. Here are the options:
 
 ```bash
-usage: sentinel-query.py [-h] -lat LAT -lon LON -l LEVEL [-f DATE_FROM] [-t DATE_TO]
-                         [-m | --mask | --no-mask] [--width WIDTH] [--height HEIGHT]
+usage: sentinel-query.py [-h] -lat LAT -lon LON [-l0 LEVEL0] [-l1 LEVEL1] [-l LEVEL] [-f DATE_FROM]
+                         [-t DATE_TO] [-m | --mask_clouds | --no-mask_clouds]
+                         [-s | --skip_water | --no-skip_water] [--width WIDTH] [--height HEIGHT]
 
-Fetch Sentinel tile for SVT-aligned bounding box
+Fetch Sentinel tile for SVT-aligned bounding box. The program has two modes. In single mode, provide a
+single level in -l to get a single tile with the given coordinates. In multi mode, provide two levels
+-l0 and -l1 to download all tiles between those levels (both included).
 
 options:
   -h, --help            show this help message and exit
-  -lat, --lat LAT       Latitude of the center point
-  -lon, --lon LON       Longitude of the center point
-  -l, --level LEVEL     SVT tile level
-  -f, --from DATE_FROM  Start date (ISO8601)
-  -t, --to DATE_TO      End date (ISO8601)
-  -m, --mask, --no-mask
-                        Mask cloudy pixels and print them in pure white
-  --width WIDTH         Output width in pixels
-  --height HEIGHT       Output height in pixels
+  -lat, --lat LAT       Latitude of the center point.
+  -lon, --lon LON       Longitude of the center point.
+  -l0, --level0 LEVEL0  The upper level in multi mode. Downloads all tiles between levels -l0 and -l1,
+                        both levels included. -l1 is required for this to work, and -l1 > -l0.
+  -l1, --level1 LEVEL1  The lower level in multi mode. Downloads all tiles between levels -l0 and -l1,
+                        both levels included. -l0 is required for this to work, and -l0 < -l1.
+  -l, --level LEVEL     SVT tile level. If this is present, single mode is activated.
+  -f, --from DATE_FROM  Start date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g.
+                        20230101).
+  -t, --to DATE_TO      End date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g.
+                        20230101).
+  -m, --mask_clouds, --no-mask_clouds
+                        Mask cloudy pixels and print them in pure red color.
+  -s, --skip_water, --no-skip_water
+                        Skip tiles that are only water. Only works in multi mode (-l0, -l1).
+  --width WIDTH         Output width in pixels.
+  --height HEIGHT       Output height in pixels.
 ```
 
 For example, if you want to get the tile for latitude=41.33 and longitude=1.89 at level 9, you would run:
@@ -137,5 +155,5 @@ options:
 
 ## Dependencies
 
-You need Python to run the scripts. The project depends on `argparse`, `numpy`, and `opencv-python`. In order to use the `sentinel-query.py` script, you also need `utm` and `requests`. You can install the right versions with `pip install -r requirements.txt`.
+You need Python to run the scripts. The project depends on `argparse`, `numpy`, and `opencv-python`. In order to use the `sentinel-query.py` script, you also need `Pillow`, `sentinelhub`, and `global_land_mask`. You can install the right versions with `pip install -r requirements.txt`.
 
