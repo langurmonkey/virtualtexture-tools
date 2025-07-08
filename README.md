@@ -134,7 +134,8 @@ options:
 For example, if you want to get the tile for latitude=41.33 and longitude=1.89 at level 9, you would run:
 
 ```bash
-➜ ./sentinel-query.py --lat 41.33 --lon 1.89 --level 9
+sentinel-query.py --lat 41.33 --lon 1.89 --level 9
+
 Box: [1.7578125, 41.1328125, 2.109375, 41.484375], col: 517, row: 138
 Image saved to out/level09/tx_517_138.jpg
 ```
@@ -142,11 +143,18 @@ Image saved to out/level09/tx_517_138.jpg
 Or, if you want level 7 of Barcelona:
 
 ```bash
-➜ ./sentinel-query.py --location "Barcelona" -l 7 -f 20240401 -t 20240901
+sentinel-query.py --location "Barcelona" -l 7 -f 20240401 -t 20240901
+
 Resolved 'Barcelona' to (41.3825802, 2.177073).
 Single mode activated
    level:7  lon:2.177073  lat:41.3825802
 Image saved to out/level07/tx_129_34.jpg
+```
+
+If you want to fetch the SVT tiles for Barcelona from level 7 down to level 11 (10m resolution), you run:
+
+```bash
+sentinel-query.py --location Barcelona -l0 7 -l1 11 -f 20240401 -t 20240901
 ```
 
 As you can see, images are saved to `out/level{level}/tx_{col}_{row}.jpg`
