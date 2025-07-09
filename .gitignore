@@ -1,5 +1,7 @@
 # Project output
 out/
+# Random directories
+s2gm/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

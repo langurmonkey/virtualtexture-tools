@@ -293,7 +293,6 @@ def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
         process_tile_rec(center_lat + lats, center_lon + lons, level + 1, l1, keep_water)
     
 
-# --- Example usage ---
 if __name__ == "__main__":
     args, mode_single, lat, lon = parse_args()
 

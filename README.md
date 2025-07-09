@@ -161,20 +161,25 @@ As you can see, images are saved to `out/level{level}/tx_{col}_{row}.jpg`
 
 ## Tile information
 
-The `tile-info.py` script can convert from (latitude, longitude, level) to tile coordinates (column, row), and vice-versa. It also outputs UV coordinates, and a WKT and GeoJSON polygon.
+The `tile-info.py` script can convert from (latitude, longitude, level) to tile coordinates (column, row), and vice-versa. It also outputs UV coordinates, and a WKT and GeoJSON polygon. The location can either be passed as a pair of (latitude, longitude) coordinates, or as a location name (city, landmark, etc.) to be resolved via Nominatim.
 
 ```bash
-usage: tile-info.py [-h] [-c COLUMN] [-r ROW] [-lon LON] [-lat LAT] -l LEVEL
+usage: tile-info.py [-h] [-c COLUMN] [-r ROW] [-lat LATITUDE] [-lon LONGITUDE] [--location LOCATION]
+                    -l LEVEL
 
 Convert SVT column, row, and level to longitude and latitude, and vice-versa.
 
 options:
-  -h, --help           show this help message and exit
-  -c, --column COLUMN  Column index of the tile.
-  -r, --row ROW        Row index of the tile.
-  -lon LON             Longitude in [-180, 180].
-  -lat LAT             Latitude in [-90, 90].
-  -l, --level LEVEL    SVT level.
+  -h, --help            show this help message and exit
+  -c, --column COLUMN   Column index of the tile.
+  -r, --row ROW         Row index of the tile.
+  -lat, --latitude LATITUDE
+                        Latitude of the center point. Required if --location is not provided.
+  -lon, --longitude LONGITUDE
+                        Longitude of the center point. Required if --location is not provided.
+  --location LOCATION   Location name. The latitude and longitude of this location will be resolved
+                        using Nominatim (OpenStreetMap). Required if -lat/-lon are not provided.
+  -l, --level LEVEL     SVT level.
 ```
 
 
