@@ -120,8 +120,8 @@ if __name__ == "__main__":
     else:
         print("You must provide either:")
         print("  -lat, -lon, -l     (to get the tile containing that point), or")
+        print("  --location, -l     (to get the tile containing that location), or")
         print("  -c, -r, -l         (to get the geographic extent of a tile).")
-        parser.print_help()
         sys.exit(1)
 
     # Now that we have col/row, compute everything
