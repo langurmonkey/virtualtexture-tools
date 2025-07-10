@@ -24,6 +24,8 @@ from sentinelhub import (
     Geometry,
 )
 
+output_dir = "out"
+
 def get_lat_lon(location_name):
     geolocator = Nominatim(user_agent="geoapi")
     location = geolocator.geocode(location_name)
@@ -133,6 +135,17 @@ def get_svt_tile_bbox(lat, lon, level):
 
     return [lon0, lat1, lon1, lat0], col, row
 
+def tile_exists(lat, lon, level):
+    global output_dir
+
+    _, col, row = get_svt_tile_bbox(lat, lon, level)
+
+    level_dir = os.path.join(output_dir, f"level{level:02d}")
+    filename = f"tx_{col}_{row}.jpg"
+    filepath = os.path.join(level_dir, filename)
+    return os.path.isfile(filepath), filename, filepath
+
+
 def request_sentinel_true_col(lat, lon, level, date_from, date_to, width=1024, height=1024):
     client_id, client_secret = get_client_credentials()
     config = SHConfig()
@@ -169,6 +182,11 @@ def request_sentinel_true_col(lat, lon, level, date_from, date_to, width=1024, h
     return true_col_imgs[0], col, row
 
 def download_tile(level, lat, lon, args):
+    exists, fname, fpath = tile_exists(lat, lon, level)
+    if exists and not args.overwrite:
+        print(f"Skipping tile, file exists: {fpath}.")
+        return
+        
     image_bytes, col, row = request_sentinel_true_col(
         lat,
         lon,
@@ -183,13 +201,18 @@ def download_tile(level, lat, lon, args):
     img = Image.fromarray(arr_rgb)
 
     # Build output directory
-    out_dir = os.path.join("out", f"level{level:02d}")
-    os.makedirs(out_dir, exist_ok=True)
+    global output_dir
+    level_dir = os.path.join(output_dir, f"level{level:02d}")
+    os.makedirs(level_dir, exist_ok=True)
     # Write file
-    filename = f"tx_{col}_{row}.jpg"
-    filepath = os.path.join(out_dir, filename)
+    filename = fname
+    filepath = fpath
     img.save(filepath, quality=88)
-    print(f"Image saved to {filepath}")
+
+    if not exists:
+        print(f"Image saved to {filepath}")
+    else:
+        print(f"Image saved to {filepath} (ow)")
 
 def parse_date(date_str):
     # Try ISO 8601 first
@@ -202,50 +225,6 @@ def parse_date(date_str):
         f"Invalid date format: {date_str}. Use ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101)."
     )
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Fetch Sentinel tile for SVT-aligned bounding box. The program has two modes. In single mode, provide a single level in -l to get a single tile with the given coordinates. In multi mode, provide two levels -l0 and -l1 to download all tiles between those levels (both included).")
-    parser.add_argument("-lat", "--latitude", type=float, help="Latitude of the center point. Required if --location is not provided.")
-    parser.add_argument("-lon", "--longitude", type=float, help="Longitude of the center point. Required if --location is not provided.")
-    parser.add_argument("--location", type=str, help="Location name. The latitude and longitude of this location will be resolved using Nominatim (OpenStreetMap). Required if -lat/-lon are not provided.")
-    parser.add_argument("-l0", "--level0", type=int, required=False, help="The upper level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l1 is required for this to work, and -l1 > -l0.")
-    parser.add_argument("-l1", "--level1", type=int, required=False, help="The lower level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l0 is required for this to work, and -l0 < -l1.")
-    parser.add_argument("-l", "--level", type=int, required=False, help="SVT tile level. If this is present, single mode is activated.")
-    parser.add_argument("-f", "--from", dest="date_from", type=parse_date, default=datetime(2024, 1, 1), help="Start date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
-    parser.add_argument("-t", "--to", dest="date_to", type=parse_date, default=datetime(2025, 6, 1), help="End date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
-    parser.add_argument("-k", "--keep_water", default=False, action=argparse.BooleanOptionalAction, help="Keep tiles that are only water. By default, all-water tiles are discarded. Only works in multi mode (-l0, -l1).")
-    parser.add_argument("--width", type=int, default=1024, help="Output width in pixels.")
-    parser.add_argument("--height", type=int, default=1024, help="Output height in pixels.")
-    args = parser.parse_args()
-
-    # Location
-    loc = args.location is not None
-    coords = args.latitude is not None and args.longitude is not None
-
-    if not (loc ^ coords):
-        parser.error("You must provide either both --latitude and --longitude, or --location (but not both).")
-
-    if coords:
-        lat = args.latitude
-        lon = args.longitude
-    else:
-        # Resolve.
-        ll = get_lat_lon(args.location)
-        if ll is None:
-            parser.error(f"Could not resolve latitude and longitude for location '{args.location}'")
-        else :
-            print(f"Resolved '{args.location}' to {ll}.")
-
-        lat = ll[0]
-        lon = ll[1]
-    
-    # Mode
-    single_mode = args.level is not None
-    multi_mode = args.level0 is not None and args.level1 is not None
-
-    if not (single_mode ^ multi_mode):
-        parser.error("You must provide either both -l0 and -l1, or -l (but not both).")
-
-    return args, single_mode, lat, lon
     
 """ Current tile number """
 current_tile = 0
@@ -293,14 +272,122 @@ def process_tile_rec(latitude, longitude, level, l1, keep_water=False):
         process_tile_rec(center_lat + lats, center_lon + lons, level + 1, l1, keep_water)
     
 
-if __name__ == "__main__":
-    args, mode_single, lat, lon = parse_args()
+def level_mode(args):
+    level = args.level
+    cols = (2 ** level) * 2
+    rows = 2 ** level
+    global current_tile, total_tiles, skipped_tiles
+    total_tiles = cols * rows
 
-    if mode_single:
+    print(f"Num tiles: {total_tiles} ({cols} columns, {rows} rows)")
+
+    current_tile = 0
+    lat0 = 90.0
+    lon0 = -180.0
+    step = 180.0 / rows
+    for col in range(cols):
+        for row in range(rows):
+            lon = lon0 + col * step
+            lat = lat0 - row * step
+
+            bbox, col, row = get_svt_tile_bbox(lat, lon, level)
+            # Compute center longitude and latitude
+            minlat = min(bbox[1], bbox[3])
+            maxlat = max(bbox[1], bbox[3])
+            minlon = min(bbox[0], bbox[2])
+            maxlon = max(bbox[0], bbox[2])
+            span_lat = (maxlat - minlat) / 2.0
+            span_lon = (maxlon - minlon) / 2.0
+            center_lat = minlat + span_lat
+            center_lon = minlon + span_lon
+
+            lat = center_lat
+            lon = center_lon
+
+            print(f"Tile: tx_{col}_{row}  ({lat}, {lon}) - {current_tile + 1}/{total_tiles}, {(current_tile + 1) * 100.0 / total_tiles:.2f}%")
+
+            has_land = tile_has_land(minlat, minlon, maxlat, maxlon)
+            if not has_land and not args.keep_water:
+                print(f"Skipping water tile L{level} ({col},{row})")
+                skipped_tiles += 1
+
+            if has_land or args.keep_water:
+                download_tile(level, lat, lon, args)
+                current_tile += 1
+        
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Fetch Sentinel tile for SVT-aligned bounding box. The program has two modes. In single mode, provide a single level in -l to get a single tile with the given coordinates. In multi mode, provide two levels -l0 and -l1 to download all tiles between those levels (both included).")
+    parser.add_argument("-lat", "--latitude", type=float, help="Latitude of the center point. Required if --location is not provided.")
+    parser.add_argument("-lon", "--longitude", type=float, help="Longitude of the center point. Required if --location is not provided.")
+    parser.add_argument("--location", type=str, help="Location name. The latitude and longitude of this location will be resolved using Nominatim (OpenStreetMap). Required if -lat/-lon are not provided.")
+    parser.add_argument("-l0", "--level0", type=int, required=False, help="The upper level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l1 is required for this to work, and -l1 > -l0.")
+    parser.add_argument("-l1", "--level1", type=int, required=False, help="The lower level in multi mode. Downloads all tiles between levels -l0 and -l1, both levels included. -l0 is required for this to work, and -l0 < -l1.")
+    parser.add_argument("-l", "--level", type=int, required=False, help="SVT tile level. If this is present, single mode is activated.")
+    parser.add_argument("-f", "--from", dest="date_from", type=parse_date, default=datetime(2024, 1, 1), help="Start date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
+    parser.add_argument("-t", "--to", dest="date_to", type=parse_date, default=datetime(2025, 6, 1), help="End date. Format can be ISO8601 (e.g. 2023-01-01T00:00:00Z) or YYYYMMDD (e.g. 20230101).")
+    parser.add_argument("-o", "--overwrite", default=False, action="store_true", help="Overwrite images if they already exist.")
+    parser.add_argument("-k", "--keep-water", default=False, action="store_true", help="Keep tiles that are only water. By default, all-water tiles are discarded. Only works in multi mode (-l0, -l1) and in level mode (no location provided).")
+    parser.add_argument("--width", type=int, default=1024, help="Output width in pixels.")
+    parser.add_argument("--height", type=int, default=1024, help="Output height in pixels.")
+    args = parser.parse_args()
+
+    # Mode
+    single_mode = args.level is not None
+    multi_mode = args.level0 is not None and args.level1 is not None
+
+    if not (single_mode ^ multi_mode):
+        parser.error("You must provide either both -l0 and -l1, or -l (but not both).")
+
+    # Location
+    loc = args.location is not None
+    coords = args.latitude is not None and args.longitude is not None
+
+    level_mode = False
+    if not (loc ^ coords):
+        if multi_mode:
+            parser.error("Level mode needs a single level (--level).")
+
+        print("No location provided. We are about to enter 'level mode', where a level is downloaded for the whole Earth.")
+        print(f"Are you **SURE** you want to get **ALL** level {args.level} tiles for the whole Planet?")
+        response = input("(Y/n): ")
+        level_mode = response == "" or response == "y" or response == "Y"
+        if not level_mode:
+            parser.error("You must provide either both --latitude and --longitude, or --location (but not both).")
+
+    if coords:
+        lat = args.latitude
+        lon = args.longitude
+    else:
+        # Resolve.
+        ll = get_lat_lon(args.location)
+        if ll is None:
+            parser.error(f"Could not resolve latitude and longitude for location '{args.location}'")
+        else :
+            print(f"Resolved '{args.location}' to {ll}.")
+
+        lat = ll[0]
+        lon = ll[1]
+    
+
+    return args, single_mode, level_mode, lat, lon
+
+if __name__ == "__main__":
+    args, mode_single, mode_level, lat, lon = parse_args()
+
+    if mode_level:
+        print("Level mode activated")
+        print(f" - Downloading all tiles of level {args.level}")
+        # Get all tiles at this level.
+        level_mode(args)
+        print(f"Done. Downloaded {current_tile} tiles, skipped {skipped_tiles} water tiles.")
+
+    elif mode_single:
         print("Single mode activated")
         print(f"   level:{args.level}  lon:{lon}  lat:{lat}")
         # Single mode, just download one tile.
         download_tile(args.level, lat, lon, args)
+
     else:
         # Multi mode, download tiles between two levels.
         if args.level0 >= args.level1:
