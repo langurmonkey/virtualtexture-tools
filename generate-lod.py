@@ -50,10 +50,10 @@ Processes the tiles of the given level, and produces the tiles of level-1.
 """
 def process_level(level, dir):
     if not os.path.exists(dir):
-        print("Directory for level %d not found: %s" % (level, dir))
+        print(f"Directory for level {level:02d} not found: {dir}")
         sys.exit(-1)
 
-    print("Processing level: %d (%s)" % (level, dir))
+    print(f"Processing level: {level:02d} ({dir})")
 
     directory = os.fsencode(dir)
 
@@ -99,7 +99,7 @@ def process_level(level, dir):
             tiles[row][col] = filename
 
     l = level - 1
-    leveldir = "level" + str(l)
+    leveldir = f"level{l:02d}" + str(l)
     if not os.path.exists(leveldir):
         os.makedirs(leveldir)
 
